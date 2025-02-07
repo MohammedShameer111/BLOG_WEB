@@ -1,44 +1,31 @@
 import express from "express";
 import cors from "cors";
-import fetch from "node-fetch";
-import dotenv from "dotenv";
-
-dotenv.config();
+import geoip from "geoip-lite";
 
 const app = express();
 
-// ✅ Allow requests from your frontend
+// ✅ Allow frontend requests
 app.use(cors({ origin: "https://blog-website-pv7a.onrender.com" }));
 
-app.get("/api/location", async (req, res) => {
+app.get("/api/location", (req, res) => {
   try {
-    // ✅ Extract user IP properly (works on Render & similar services)
-    const publicIp = req.headers["x-forwarded-for"]?.split(",")[0] || req.ip;
-    console.log("User's Public IP:", publicIp);
+    // ✅ Get the user's IP from request headers
+    const ip = req.headers["x-forwarded-for"]?.split(",")[0] || req.socket.remoteAddress;
+    console.log("User IP:", ip);
 
-    if (!publicIp || publicIp === "127.0.0.1") {
-      return res.status(500).json({ location: "unknown", error: "Invalid IP detected" });
-    }
+    // ✅ Lookup location using geoip-lite
+    const geo = geoip.lookup(ip);
 
-    // ✅ Fetch location from FindIP API
-    const apiUrl = `https://api.findip.net/${publicIp}/?token=${process.env.FINDIP_API_KEY}`;
-    console.log("Fetching location from:", apiUrl);
-
-    const response = await fetch(apiUrl);
-    const data = await response.json();
-
-    if (!data || !data.country || !data.country.iso_code) {
-      console.error("Error: Invalid response from FindIP", data);
-      return res.status(500).json({ location: "unknown", error: "Invalid response from FindIP" });
+    if (!geo || !geo.country) {
+      return res.status(500).json({ location: "unknown", error: "GeoIP lookup failed" });
     }
 
     // ✅ Determine location based on country code
-    const countryCode = data.country.iso_code;
-    const location = countryCode === "IN" ? "india" : countryCode === "US" ? "america" : "unknown";
+    const location = geo.country === "IN" ? "india" : geo.country === "US" ? "america" : "unknown";
 
-    res.status(200).json({ location });
+    res.json({ location });
   } catch (error) {
-    console.error("Server Error:", error.message);
+    console.error("GeoIP Error:", error.message);
     res.status(500).json({ location: "unknown", error: error.message });
   }
 });
