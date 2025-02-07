@@ -6,18 +6,21 @@ import dotenv from "dotenv";
 dotenv.config();
 
 const app = express();
-app.use(cors());
+
+// ✅ Allow requests from your frontend
+app.use(cors({ origin: "https://blog-website-pv7a.onrender.com" }));
 
 app.get("/api/location", async (req, res) => {
   try {
-    // Step 1: Get the user's public IP
-    const ipResponse = await fetch("https://api64.ipify.org?format=json");
-    const ipData = await ipResponse.json();
-    const publicIp = ipData.ip; // Extract public IP
+    // ✅ Extract user IP properly (works on Render & similar services)
+    const publicIp = req.headers["x-forwarded-for"]?.split(",")[0] || req.ip;
+    console.log("User's Public IP:", publicIp);
 
-    console.log("User's Public IP:", publicIp); // Debugging
+    if (!publicIp || publicIp === "127.0.0.1") {
+      return res.status(500).json({ location: "unknown", error: "Invalid IP detected" });
+    }
 
-    // Step 2: Fetch location data from FindIP API
+    // ✅ Fetch location from FindIP API
     const apiUrl = `https://api.findip.net/${publicIp}/?token=${process.env.FINDIP_API_KEY}`;
     console.log("Fetching location from:", apiUrl);
 
@@ -29,7 +32,7 @@ app.get("/api/location", async (req, res) => {
       return res.status(500).json({ location: "unknown", error: "Invalid response from FindIP" });
     }
 
-    // ✅ Extract country code from correct location in response
+    // ✅ Determine location based on country code
     const countryCode = data.country.iso_code;
     const location = countryCode === "IN" ? "india" : countryCode === "US" ? "america" : "unknown";
 
@@ -40,5 +43,5 @@ app.get("/api/location", async (req, res) => {
   }
 });
 
-const PORT = 5000;
+const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

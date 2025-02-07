@@ -4,7 +4,7 @@ function App() {
   const [location, setLocation] = useState(null);
 
   useEffect(() => {
-    fetch("http://localhost:5000/api/location") // Request backend API
+    fetch("https://blog-web-backend-uexw.onrender.com/api/location") // Use deployed backend URL
       .then((res) => res.json())
       .then((data) => setLocation(data.location))
       .catch(() => setLocation("unknown"));
@@ -13,7 +13,7 @@ function App() {
   if (!location) return <p>Loading...</p>;
 
   return (
-    <div >
+    <div>
       {location === "india" ? (
         <h1>🇮🇳 Welcome to the Indian Blog</h1>
       ) : location === "america" ? (
